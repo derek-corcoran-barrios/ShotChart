@@ -1,14 +1,14 @@
 {
     "collab_server" : "",
-    "contents" : "\n# This is the user-interface definition of a Shiny web application.\n# You can find out more about building applications with Shiny here:\n#\n# http://shiny.rstudio.com\n#\n\nlibrary(shiny)\n\nshinyUI(fluidPage(\n\n  # Application title\n  titlePanel(\"NBA Shot Charts\"),\n\n      selectInput(inputId = \"Home\",\n                  label = \"Home Team:\",\n                  choices =  c(\"Atl\", \"Bos\", \"Bro\", \"Cha\",\"Chi\",\"Cle\", \"Dal\", \"Den\", \"Det\", \"GSW\", \n                               \"Hou\", \"Ind\", \"LAC\", \"LAL\", \"Mia\", \"Mil\", \"Min\", \"NO\", \"NY\", \"Okc\", \"Orl\", \"Phi\",  \"Pho\", \"Por\", \"Sac\", \"Sas\" , \"Tor\", \"Uta\", \"Mem\", \"Was\"),\n                  selected = \"Sas\"\n                  ),\n      selectInput(inputId = \"Visitor\",\n                  label = \"Visitor Team:\",\n                  choices = c(\"Atl\", \"Bos\", \"Bro\", \"Cha\",\"Chi\",\"Cle\", \"Dal\", \"Den\", \"Det\", \"GSW\", \n                              \"Hou\", \"Ind\", \"LAC\", \"LAL\", \"Mia\", \"Mil\", \"Min\", \"NO\", \"NY\", \"Okc\", \"Orl\", \"Phi\",  \"Pho\", \"Por\", \"Sac\", \"Sas\" , \"Tor\", \"Uta\", \"Mem\", \"Was\"),\n                  selected = \"Phi\"\n                  ),\n      numericInput(inputId = \"quant\", label = \"Quantile\", value = 0.7, min = 0.05, max = 0.95),\n      textOutput(\"offAPPS\"),\n      textOutput(\"defAPPS\"),\n    # Show a plot of the generated distribution\n      plotOutput(\"distPlot\",height = \"1000px\")\n    )\n  )\n",
+    "contents" : "\n# This is the user-interface definition of a Shiny web application.\n# You can find out more about building applications with Shiny here:\n#\n# http://shiny.rstudio.com\n#\n\nlibrary(shiny)\n\nshinyUI(fluidPage(\n\n  # Application title\n  titlePanel(\"NBA Shot Charts\"),\n  fluidRow(\n    column(3,\n           selectInput(inputId = \"Home\",\n                       label = \"Home Team:\",\n                       choices =  c(\"Atl\", \"Bos\", \"Bro\", \"Cha\",\"Chi\",\"Cle\", \"Dal\", \"Den\", \"Det\", \"GSW\", \n                                    \"Hou\", \"Ind\", \"LAC\", \"LAL\", \"Mia\", \"Mil\", \"Min\", \"NO\", \"NY\", \"Okc\", \"Orl\", \"Phi\",  \"Pho\", \"Por\", \"Sac\", \"Sas\" , \"Tor\", \"Uta\", \"Mem\", \"Was\"),\n                       selected = \"Sas\"\n           ),\n           selectInput(inputId = \"Visitor\",\n                       label = \"Visitor Team:\",\n                       choices = c(\"Atl\", \"Bos\", \"Bro\", \"Cha\",\"Chi\",\"Cle\", \"Dal\", \"Den\", \"Det\", \"GSW\", \n                                   \"Hou\", \"Ind\", \"LAC\", \"LAL\", \"Mia\", \"Mil\", \"Min\", \"NO\", \"NY\", \"Okc\", \"Orl\", \"Phi\",  \"Pho\", \"Por\", \"Sac\", \"Sas\" , \"Tor\", \"Uta\", \"Mem\", \"Was\"),\n                       selected = \"Phi\"\n           )\n    ),\n    column(4,\n           numericInput(inputId = \"quant\", label = \"Quantile\", value = 0.7, min = 0.05, max = 0.95, step = 0.05)\n    ),\n    column(4,h3(\"Expected results:\"),\n           p(textOutput(\"offAPPS\")),\n           p(textOutput(\"defAPPS\"))\n    )\n  ),\n  \n      plotOutput(\"distPlot\",height = \"1000px\"),\n      downloadButton('downloadPlot', 'Download Plot')\n\n    )\n  )\n",
     "created" : 1474897396037.000,
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "3494733216",
+    "hash" : "2791498587",
     "id" : "39736DE5",
-    "lastKnownWriteTime" : 1474905769,
-    "last_content_update" : 1474905769959,
+    "lastKnownWriteTime" : 1474910323,
+    "last_content_update" : 1474910323972,
     "path" : "~/ShotCharts/ui.R",
     "project_path" : "ui.R",
     "properties" : {

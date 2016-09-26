@@ -204,4 +204,14 @@ shinyServer(function(input, output) {
     paste("The Points over Average per shot scored by", input$Visitor, "against", input$Home, "is" , def)
   })
   
+  output$downloadPlot <- downloadHandler(
+    filename = function() { paste("ShotCharts", '.png', sep='') },
+    content = function(file) {
+      png(file, width = 1500, height = 1500, res = 300)
+      Com1 <- ShotComparisonGraph(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
+      Com2 <- ShotComparisonGraph(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
+      grid.arrange(Com1$charts,Com2$charts,Com1$leg,ncol=1,heights=c(3/7, 3/7 ,1/7))
+      dev.off()
+    })
+  
 })
