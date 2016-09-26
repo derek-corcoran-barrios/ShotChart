@@ -7,7 +7,7 @@
 
 library(shiny)
 
-shinyUI(bootstrapPage(
+shinyUI(fluidPage(
 
   # Application title
   titlePanel("NBA Shot Charts"),
@@ -25,8 +25,8 @@ shinyUI(bootstrapPage(
                   selected = "Phi"
                   ),
       numericInput(inputId = "quant", label = "Quantile", value = 0.7, min = 0.05, max = 0.95),
-
-
+      textOutput("offAPPS"),
+      textOutput("defAPPS"),
     # Show a plot of the generated distribution
       plotOutput("distPlot",height = "1000px")
     )
