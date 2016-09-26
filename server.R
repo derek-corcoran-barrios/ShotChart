@@ -14,9 +14,11 @@ library(ggplot2)
 library(hexbin)
 library(knitr)
 library(dplyr)
+library(gbm)
 court <- readRDS("court.rds")
 shotDatafDef2016 <- readRDS("shotDatafDef2016.rds")
 shotDataTotal2016 <- readRDS("shotDataTotal2016.rds")
+BRT <- readRDS("BRT.rds")
 ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30, maxsize = 7, quant = 0.7) {
   #Filter the offensive data of the Offensive Team
   Off <- filter(SeasondataOff, TEAM_NAME == OffTeam)
@@ -197,6 +199,13 @@ shinyServer(function(input, output) {
   output$offAPPS <- renderText({
     Off <- round(PPS(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30), digits = 3)
     paste("The Points over Average per shot scored by", input$Home, "against", input$Visitor, "is" , Off)
+  })
+  
+  output$Spread <- renderText({
+    off <- PPS(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
+    def <- PPS(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
+    spread <- round(predict.gbm(BRT, data.frame(defAPPS = off, offAPPS = def), n.trees=BRT$gbm.call$best.trees, type="response"), digits = 3)
+    paste("The predicted home spread is", spread)
   })
   
   output$defAPPS <- renderText({

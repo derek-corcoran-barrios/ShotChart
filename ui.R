@@ -31,7 +31,8 @@ shinyUI(fluidPage(
     ),
     column(4,h3("Expected results:"),
            p(textOutput("offAPPS")),
-           p(textOutput("defAPPS"))
+           p(textOutput("defAPPS")),
+           p(textOutput("Spread"))
     )
   ),
   
