@@ -73,6 +73,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
   
   PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x)
   
+  
   #Legend extractor
   g_legend <- function(a.gplot){
     tmp <- ggplot_gtable(ggplot_build(a.gplot))
@@ -80,47 +81,72 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
     legend <- tmp$grobs[[leg]]
     return(legend)}
   
-  OFFLEG <- ggplot(DiffOff) + annotation_custom(court, -250, 250, -52, 418) + geom_point(aes(x = x, y = y, color = PPS, size = ST), stat = "identity") +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) +scale_color_gradient2(low = "blue", high = "red", name = "APPS") + ylim(c(-51, 400))+ theme(legend.position="bottom") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
-  leg<-g_legend(OFFLEG)
+  #Function to transform hexbins into polygons
+  hex_coord_df <- function(x, y, width, height, size = 1) {
+    # like hex_coord but returns a dataframe of vertices grouped by an id variable
+    dx <- log(size * width / 6)
+    dy <- log(size * height / 2 / sqrt(3))
+    
+    hex_x <- rbind(x - 2 * dx, x - dx, x + dx, x + 2 * dx, x + dx, x - dx)
+    hex_y <- rbind(y, y + dy, y + dy, y, y - dy, y - dy)
+    id    <- rep(1:length(x), each=6)
+    
+    data.frame(cbind(x=as.vector(hex_x), y=as.vector(hex_y), id))
+  }
+  
+  #Filter by quantile
   
   DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
   DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
   Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
   
+  #Transform Hexbins into polygons
   
+  DFOFF <- hex_coord_df(DiffOff$x, DiffOff$y, (0.05*DiffOff$ST), (0.05*DiffOff$ST), size =1)
+  DFOFF$PPS <- rep(DiffOff$PPS, each = 6)
   
-  OFF <- ggplot(DiffOff) + annotation_custom(court, -250, 250, -52, 418) + geom_point(aes(x = x, y = y, color = PPS, size = ST), stat = "identity") +
+  DFDEF <- hex_coord_df(DiffDeff$x, DiffDeff$y, DiffDeff$ST, DiffDeff$ST, size =1)
+  DFDEF$PPS <- rep(DiffDeff$PPS, each = 6)
+  
+  DFDIF <- hex_coord_df(Comparison$x.x, Comparison$y.x, (0.05*Comparison$ST.x),(0.05*Comparison$ST.x), size =1)
+  DFDIF$Dif <- rep(Comparison$Diff, each = 6)
+  
+  #Create Legend
+  OFFLEG <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
                           axis.text.x = element_blank(),
                           axis.text.y = element_blank(),
                           legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + scale_color_gradient2(low = "blue", high = "red", name = "APPS") + ylim(c(-51, 400))+ theme(legend.position="none") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
-  DEF <- ggplot(DiffDeff)  + annotation_custom(court, -250, 250, -52, 418) + geom_point(aes(x = x, y = y, color = PPS, size = ST), stat = "identity") +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + scale_color_gradient2(low = "blue", high = "red", name = "APPS") + ylim(c(-51, 400))+ theme(legend.position="none") + ggtitle(paste(DefTown, "defensive\n Shot Chart", sep = " "))
+                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="bottom") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
+  leg<-g_legend(OFFLEG)
   
-  COMP <- ggplot(Comparison) + annotation_custom(court, -250, 250, -52, 418) + geom_point(aes(x = x.x, y = y.x, color = Diff, size = ST.x), stat = "identity") +
+  OFF <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
                           axis.text.x = element_blank(),
                           axis.text.y = element_blank(),
                           legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + scale_color_gradient2(low = "blue", high = "red", name = "APPS") + ylim(c(-51, 400))+ theme(legend.position="none") + ggtitle("Comparison\n Shot Chart")
+                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
+  DEF <- ggplot(DFDEF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS))+ scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+    coord_fixed()  +theme(line = element_blank(),
+                          axis.title.x = element_blank(),
+                          axis.title.y = element_blank(),
+                          axis.text.x = element_blank(),
+                          axis.text.y = element_blank(),
+                          legend.title = element_blank(),
+                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") + ggtitle(paste(DefTown, "defensive\n Shot Chart", sep = " "))
+  
+  COMP <- ggplot(DFDIF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = Dif)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+    coord_fixed()  +theme(line = element_blank(),
+                          axis.title.x = element_blank(),
+                          axis.title.y = element_blank(),
+                          axis.text.x = element_blank(),
+                          axis.text.y = element_blank(),
+                          legend.title = element_blank(),
+                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) +  ylim(c(-40, 270))+ theme(legend.position="none") + ggtitle("Comparison\n Shot Chart")
   charts <- arrangeGrob(DEF,OFF, COMP, ncol = 3)
   p <- grid.arrange(arrangeGrob(arrangeGrob(DEF,OFF, COMP, ncol = 3),leg,ncol=1,heights=c(7/8,1/8)))
   
