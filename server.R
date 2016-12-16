@@ -19,7 +19,7 @@ court <- readRDS("court.rds")
 shotDatafDef2016 <- readRDS("shotDatafDef2016.rds")
 shotDataTotal2016 <- readRDS("shotDataTotal2016.rds")
 BRT <- readRDS("BRT.rds")
-ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30, maxsize = 7, quant = 0.7) {
+ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30, maxsize = 7, quant = 0.7, focus = "all") {
   #Filter the offensive data of the Offensive Team
   Off <- filter(SeasondataOff, TEAM_NAME == OffTeam)
   #Filter the Deffensive data of the Defensive team
@@ -94,12 +94,25 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
     data.frame(cbind(x=as.vector(hex_x), y=as.vector(hex_y), id))
   }
   
-  #Filter by quantile
+  #Filter by quantile and focus
+  if (focus == "all") {
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+  }
+  if (focus == "plus"){
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+    Comparison <- filter(Comparison, Diff >= 0)
+  }
   
-  DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
-  DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
-  Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
-  
+  if (focus == "minus") {
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+    Comparison <- filter(Comparison, Diff <= 0)
+  }
   #Transform Hexbins into polygons
   
   DFOFF <- hex_coord_df(DiffOff$x, DiffOff$y, (0.05*DiffOff$ST), (0.05*DiffOff$ST), size =1)
@@ -112,7 +125,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
   DFDIF$Dif <- rep(Comparison$Diff, each = 6)
   
   #Create Legend
-  OFFLEG <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+  OFFLEG <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
@@ -122,7 +135,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
                           plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="bottom") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
   leg<-g_legend(OFFLEG)
   
-  OFF <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+  OFF <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
@@ -130,7 +143,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
                           axis.text.y = element_blank(),
                           legend.title = element_blank(),
                           plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
-  DEF <- ggplot(DFDEF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS))+ scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+  DEF <- ggplot(DFDEF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS))+ scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
@@ -139,7 +152,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
                           legend.title = element_blank(),
                           plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") + ggtitle(paste(DefTown, "defensive\n Shot Chart", sep = " "))
   
-  COMP <- ggplot(DFDIF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = Dif)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.2, 1.2)) +
+  COMP <- ggplot(DFDIF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = Dif)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
     coord_fixed()  +theme(line = element_blank(),
                           axis.title.x = element_blank(),
                           axis.title.y = element_blank(),
@@ -214,8 +227,8 @@ shinyServer(function(input, output) {
   
   output$distPlot <- renderPlot({
     
-    Com1 <- ShotComparisonGraph(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
-    Com2 <- ShotComparisonGraph(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
+    Com1 <- ShotComparisonGraph(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant, focus = input$Focus)
+    Com2 <- ShotComparisonGraph(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant, focus = input$Focus)
     
     grid.arrange(Com1$charts,Com2$charts,Com1$leg,ncol=1,heights=c(3/7, 3/7 ,1/7))
     

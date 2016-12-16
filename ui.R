@@ -24,6 +24,11 @@ shinyUI(fluidPage(
                        choices = c("Atl", "Bos", "Bro", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
                                    "Hou", "Ind", "LAC", "LAL", "Mia", "Mil", "Min", "NO", "NY", "Okc", "Orl", "Phi",  "Pho", "Por", "Sac", "Sas" , "Tor", "Uta", "Mem", "Was"),
                        selected = "Phi"
+           ),
+           selectInput(inputId = "Focus",
+                       label = "Focus:",
+                       choices = c("all", "plus", "minus"),
+                       selected = "all"
            )
     ),
     column(4,

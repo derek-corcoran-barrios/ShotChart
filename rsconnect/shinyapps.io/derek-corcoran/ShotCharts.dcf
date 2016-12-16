@@ -2,8 +2,8 @@ name: ShotCharts
 account: derek-corcoran
 server: shinyapps.io
 appId: 127878
-bundleId: 645457
+bundleId: 653013
 url: https://derek-corcoran.shinyapps.io/ShotCharts/
-when: 1481559316.38822
+when: 1481925214.90373
 asMultiple: FALSE
 asStatic: FALSE
