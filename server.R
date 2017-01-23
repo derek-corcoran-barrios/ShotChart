@@ -15,10 +15,11 @@ library(hexbin)
 library(knitr)
 library(dplyr)
 library(gbm)
+library(caret)
 court <- readRDS("court.rds")
-shotDatafDef2016 <- readRDS("shotDatafDef2016.rds")
-shotDataTotal2016 <- readRDS("shotDataTotal2016.rds")
-BRT <- readRDS("BRT.rds")
+shotDatafDef2016 <- readRDS("shotDatafDef2017.rds")
+shotDataTotal2016 <- readRDS("shotDataTotal2017.rds")
+BRT <- readRDS("BRT2017_17_Jan.rds")
 ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30, maxsize = 7, quant = 0.7, focus = "all") {
   #Filter the offensive data of the Offensive Team
   Off <- filter(SeasondataOff, TEAM_NAME == OffTeam)
@@ -71,7 +72,7 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
   Comparison$Diff <- c(Comparison$PPS.x + Comparison$PPS.y)
   
   
-  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x)
+  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x, na.rm = TRUE)
   
   
   #Legend extractor
@@ -96,21 +97,21 @@ ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, 
   
   #Filter by quantile and focus
   if (focus == "all") {
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
   }
   if (focus == "plus"){
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
     Comparison <- filter(Comparison, Diff >= 0)
   }
   
   if (focus == "minus") {
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant))
+    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
+    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
+    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
     Comparison <- filter(Comparison, Diff <= 0)
   }
   #Transform Hexbins into polygons
@@ -218,7 +219,7 @@ PPS <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30) {
   Comparison$Diff <- c(Comparison$PPS.x + Comparison$PPS.y)
   
   
-  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x)
+  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x, na.rm = TRUE)
   
   return(PPSAA)
 }
@@ -243,9 +244,10 @@ shinyServer(function(input, output) {
   output$Spread <- renderText({
     off <- PPS(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
     def <- PPS(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
-    spread <- round(predict.gbm(BRT, data.frame(defAPPS = off, offAPPS = def), n.trees=BRT$gbm.call$best.trees, type="response"), digits = 3)
+    spread <- round(predict(BRT, data.frame(defAPPS = off, offAPPS = def), type="raw"), digits = 3)
     paste("The predicted home spread is", spread)
   })
+  
   
   output$defAPPS <- renderText({
     def <- round(PPS(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30), digits = 3)

@@ -13,6 +13,9 @@ shinyUI(fluidPage(
   titlePanel("NBA Shot Charts"),
   fluidRow(
     column(3,
+           selectInput(inputId = "Type", label = "Type:", choices = 
+                         c("Prediction"= "Prediction",
+                           "Trade machine" = "Trade machine")),
            selectInput(inputId = "Home",
                        label = "Home Team:",
                        choices =  c("Atl", "Bos", "Bro", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
