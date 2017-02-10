@@ -18,14 +18,14 @@ shinyUI(fluidPage(
                            "Trade machine" = "Trade machine")),
            selectInput(inputId = "Home",
                        label = "Home Team:",
-                       choices =  c("Atl", "Bos", "Bro", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
-                                    "Hou", "Ind", "LAC", "LAL", "Mia", "Mil", "Min", "NO", "NY", "Okc", "Orl", "Phi",  "Pho", "Por", "Sac", "Sas" , "Tor", "Uta", "Mem", "Was"),
+                       choices =  c("Atl", "Bos", "Bkn", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
+                                    "Hou", "Ind", "Lac", "Lal", "Mia", "Mil", "Min", "NO", "NY", "Okc", "Orl", "Phi",  "Pho", "Por", "Sac", "Sas" , "Tor", "Uta", "Mem", "Was"),
                        selected = "Sas"
            ),
            selectInput(inputId = "Visitor",
                        label = "Visitor Team:",
-                       choices = c("Atl", "Bos", "Bro", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
-                                   "Hou", "Ind", "LAC", "LAL", "Mia", "Mil", "Min", "NO", "NY", "Okc", "Orl", "Phi",  "Pho", "Por", "Sac", "Sas" , "Tor", "Uta", "Mem", "Was"),
+                       choices = c("Atl", "Bos", "Bkn", "Cha","Chi","Cle", "Dal", "Den", "Det", "GSW", 
+                                   "Hou", "Ind", "Lac", "Lal", "Mia", "Mil", "Min", "NO", "NY", "Okc", "Orl", "Phi",  "Pho", "Por", "Sac", "Sas" , "Tor", "Uta", "Mem", "Was"),
                        selected = "Phi"
            ),
            selectInput(inputId = "Focus",
