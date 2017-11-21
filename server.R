@@ -4,264 +4,350 @@
 #
 # http://shiny.rstudio.com
 #
-
+library(devtools)
 library(shiny)
-library(ggplot2)
-library(gridExtra)
-library(grid)
-library(gridExtra)
-library(ggplot2)
-library(hexbin)
-library(knitr)
 library(dplyr)
-library(gbm)
-library(caret)
-court <- readRDS("court.rds")
-shotDatafDef2016 <- readRDS("shotDatafDef2017.rds")
-shotDataTotal2016 <- readRDS("shotDataTotal2017.rds")
-BRT <- readRDS("BRT2017_17_Jan.rds")
-ShotComparisonGraph <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30, maxsize = 7, quant = 0.7, focus = "all") {
-  #Filter the offensive data of the Offensive Team
-  Off <- filter(SeasondataOff, TEAM_NAME == OffTeam)
-  #Filter the Deffensive data of the Defensive team
-  deff <- SeasonDataDef[names(SeasonDataDef) == DefTown][[1]]
+library(hexbin)
+library(ggplot2)
+library(RColorBrewer)
+library(curl)
+githubURL <- ("https://raw.githubusercontent.com/derek-corcoran-barrios/derek-corcoran-barrios.github.io/master/Season2018.rds")
+#download.file(githubURL,"Season2018.rds", method="curl")
+Season2018 <- readRDS("Season2018.rds")
+load("court.rda")
+OffShotSeasonGraphTeam<- function(Seasondata, team, nbins = 25, quant = 0.4, type = "PPS", MAX_Y = 280) {
+  Seasondata <- dplyr::filter(Seasondata, LOC_Y < MAX_Y)
+  Seasondata <- dplyr::filter(Seasondata, TEAM_NAME == team)
   #Get the maximum and minumum values for x and y
-  xbnds <- range(c(SeasondataOff$LOC_X, deff$LOC_X))
-  ybnds <- range(c(SeasondataOff$LOC_Y, deff$LOC_Y))
+  xbnds <- range(Seasondata$LOC_X)
+  ybnds <- range(Seasondata$LOC_Y)
   #Make hexbin dataframes out of the teams
-  makeHexData <- function(df) {
-    h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
-    data.frame(hcell2xy(h),
-               PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG))*ifelse(tolower(df$SHOT_TYPE) == "3pt field goal", 3, 2), h@cID, FUN = function(z) sum(z)/length(z)),
-               ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
-               cid = h@cell)
+  
+  if (type == "PPS"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG))*ifelse(tolower(df$SHOT_TYPE) == "3pt field goal", 3, 2), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
   }
+  
+  if (type == "PCT"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG)), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
+  }
+  
+  
   ##Total NBA data
-  Totalhex <- makeHexData(SeasondataOff)
-  ##Defensive team data
-  Defhex <- makeHexData(deff)
-  ##Offensive team data
-  Offhex <- makeHexData(Off)
-  #Merge offensive and deffensive data with total data by Cell id
-  DeffbyCell <- merge(Totalhex, Defhex, by = "cid", all = T)
-  OffByCell <- merge(Totalhex, Offhex, by = "cid", all = T)
-  ##  when calculating the difference empty cells should count as 0
-  DeffbyCell$PPS.x[is.na(DeffbyCell$PPS.x)] <- 0
-  DeffbyCell$PPS.y[is.na(DeffbyCell$PPS.y)] <- 0
-  DeffbyCell$ST.y[is.na(DeffbyCell$ST.y)] <- 0
+  Totalhex <- makeHexData(Seasondata)
+  Totalhex <- filter(Totalhex, ST > quantile(Totalhex$ST, probs = quant))
+  Totalhex$ST <- ifelse(Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2], 0.06,
+                        ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] , 0.12 ,
+                               ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] , 0.25 ,
+                                      ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[5] , 0.5 ,
+                                             1))))
   
-  OffByCell$PPS.x[is.na(OffByCell$PPS.x)] <- 0
-  OffByCell$PPS.y[is.na(OffByCell$PPS.y)] <- 0
-  OffByCell$ST.y[is.na(OffByCell$ST.y)] <- 0
-  #  make a "difference" data.frame
-  DiffDeff <- data.frame(x = ifelse(is.na(DeffbyCell$x.x), DeffbyCell$x.y, DeffbyCell$x.x),
-                         y = ifelse(is.na(DeffbyCell$y.x), DeffbyCell$y.y, DeffbyCell$y.x),
-                         PPS= DeffbyCell$PPS.y - DeffbyCell$PPS.x,
-                         cid= DeffbyCell$cid, 
-                         ST = DeffbyCell$ST.y)
-  
-  DiffOff <- data.frame(x = ifelse(is.na(OffByCell$x.x), OffByCell$x.y, OffByCell$x.x),
-                        y = ifelse(is.na(OffByCell$y.x), OffByCell$y.y, OffByCell$y.x),
-                        PPS= OffByCell$PPS.y - OffByCell$PPS.x,
-                        ST = OffByCell$ST.x,
-                        cid = OffByCell$cid, 
-                        ST = OffByCell$ST.y)
-  #make team comparisons
-  Comparison <- merge(DiffOff, DiffDeff, by = "cid", all = T) 
-  Comparison <- Comparison[,-c(6:7)]
-  Comparison$Diff <- c(Comparison$PPS.x + Comparison$PPS.y)
-  
-  
-  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x, na.rm = TRUE)
-  
-  
-  #Legend extractor
-  g_legend <- function(a.gplot){
-    tmp <- ggplot_gtable(ggplot_build(a.gplot))
-    leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-    legend <- tmp$grobs[[leg]]
-    return(legend)}
   
   #Function to transform hexbins into polygons
   hex_coord_df <- function(x, y, width, height, size = 1) {
     # like hex_coord but returns a dataframe of vertices grouped by an id variable
-    dx <- log(size * width / 6)
-    dy <- log(size * height / 2 / sqrt(3))
+    dx <- size * width / 6
+    dy <- size * height / 2 / sqrt(3)
     
-    hex_x <- rbind(x - 2 * dx, x - dx, x + dx, x + 2 * dx, x + dx, x - dx)
-    hex_y <- rbind(y, y + dy, y + dy, y, y - dy, y - dy)
+    hex_y <- rbind(y - 2 * dy, y - dy, y + dy, y + 2 * dy, y + dy, y - dy)
+    hex_x <- rbind(x, x + dx, x + dx, x, x - dx, x - dx)
     id    <- rep(1:length(x), each=6)
     
     data.frame(cbind(x=as.vector(hex_x), y=as.vector(hex_y), id))
   }
   
-  #Filter by quantile and focus
-  if (focus == "all") {
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
-  }
-  if (focus == "plus"){
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
-    Comparison <- filter(Comparison, Diff >= 0)
-  }
-  
-  if (focus == "minus") {
-    DiffOff <- filter(DiffOff, ST > quantile(DiffOff$ST, probs = quant, na.rm = TRUE))
-    DiffDeff <- filter(DiffDeff, ST > quantile(DiffDeff$ST, probs = quant, na.rm = TRUE))
-    Comparison <- filter(Comparison, ST.x > quantile(Comparison$ST.x, probs = quant, na.rm = TRUE))
-    Comparison <- filter(Comparison, Diff <= 0)
-  }
   #Transform Hexbins into polygons
   
-  DFOFF <- hex_coord_df(DiffOff$x, DiffOff$y, (0.05*DiffOff$ST), (0.05*DiffOff$ST), size =1)
-  DFOFF$PPS <- rep(DiffOff$PPS, each = 6)
+  Total <- hex_coord_df(Totalhex$x, Totalhex$y, 35*Totalhex$ST, 12*Totalhex$ST, size =1)
+  Total$PPS <- rep(Totalhex$PPS, each = 6)
   
-  DFDEF <- hex_coord_df(DiffDeff$x, DiffDeff$y, DiffDeff$ST, DiffDeff$ST, size =1)
-  DFDEF$PPS <- rep(DiffDeff$PPS, each = 6)
+  #Make Graph
+  if(type == "PPS"){
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(name = "PPS", midpoint = 1, low = "blue", high = "red", limits=c(0, 3)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold")) + ylim(c(-40, 280)) + xlim(c(-250, 250))+ theme(legend.position="bottom")
+    
+  }else{
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(midpoint = 0.5, low = "blue", high = "red", limits=c(0, 1)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            legend.title = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ ylim(c(-40, 280)) + xlim(c(-250, 250))+ theme(legend.position="bottom")}
+  if(type == "PPS"){
+    GRAPH <- GRAPH +  ggtitle(paste("Points per Shot of", team, sep =" "))
+  }  else {GRAPH <- GRAPH +  ggtitle(paste("Shooting percentage", team, sep =" ")
+  )}
   
-  DFDIF <- hex_coord_df(Comparison$x.x, Comparison$y.x, (0.05*Comparison$ST.x),(0.05*Comparison$ST.x), size =1)
-  DFDIF$Dif <- rep(Comparison$Diff, each = 6)
   
-  #Create Legend
-  OFFLEG <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="bottom") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
-  leg<-g_legend(OFFLEG)
-  
-  OFF <- ggplot(DFOFF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") +  ggtitle(paste(OffTeam, "Offensive\n Shot Chart", sep = " "))
-  DEF <- ggplot(DFDEF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS))+ scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) + ylim(c(-40, 270))+ theme(legend.position="none") + ggtitle(paste(DefTown, "defensive\n Shot Chart", sep = " "))
-  
-  COMP <- ggplot(DFDIF, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = Dif)) + scale_fill_gradient2(low ="blue", high = "red", limits=c(-1.4, 1.4)) +
-    coord_fixed()  +theme(line = element_blank(),
-                          axis.title.x = element_blank(),
-                          axis.title.y = element_blank(),
-                          axis.text.x = element_blank(),
-                          axis.text.y = element_blank(),
-                          legend.title = element_blank(),
-                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ scale_size(range = c(0, maxsize)) +  ylim(c(-40, 270))+ theme(legend.position="none") + ggtitle("Comparison\n Shot Chart")
-  charts <- arrangeGrob(DEF,OFF, COMP, ncol = 3)
-  p <- grid.arrange(arrangeGrob(arrangeGrob(DEF,OFF, COMP, ncol = 3),leg,ncol=1,heights=c(7/8,1/8)))
-  
-  return(list(Off = DiffOff, deff = DiffDeff, Comparison = Comparison, Total = Totalhex, PPSAA = PPSAA, p = p, leg = leg, charts = charts))
+  return(GRAPH)
 }
-######
-PPS <- function(OffTeam, DefTown, SeasondataOff, SeasonDataDef, nbins = 30) {
-  #Filter the offensive data of the Offensive Team
-  Off <- filter(SeasondataOff, TEAM_NAME == OffTeam)
-  #Filter the Deffensive data of the Defensive team
-  deff <- SeasonDataDef[names(SeasonDataDef) == DefTown][[1]]
+
+DefShotSeasonGraphTeam <- function(Seasondata, team, nbins = 25, quant = 0.4, type = "PPS", MAX_Y = 280) {
+  Seasondata <- dplyr::filter(Seasondata, LOC_Y < MAX_Y)
+  Seasondata <- dplyr::filter(Seasondata, HTM == team | VTM == team & TEAM_NAME != team)
   #Get the maximum and minumum values for x and y
-  xbnds <- range(c(SeasondataOff$LOC_X, deff$LOC_X))
-  ybnds <- range(c(SeasondataOff$LOC_Y, deff$LOC_Y))
+  xbnds <- range(Seasondata$LOC_X)
+  ybnds <- range(Seasondata$LOC_Y)
   #Make hexbin dataframes out of the teams
-  makeHexData <- function(df) {
-    h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
-    data.frame(hcell2xy(h),
-               PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG))*ifelse(tolower(df$SHOT_TYPE) == "3pt field goal", 3, 2), h@cID, FUN = function(z) sum(z)/length(z)),
-               ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
-               cid = h@cell)
+  
+  if (type == "PPS"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG))*ifelse(tolower(df$SHOT_TYPE) == "3pt field goal", 3, 2), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
   }
+  
+  if (type == "PCT"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG)), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
+  }
+  
+  
   ##Total NBA data
-  Totalhex <- makeHexData(SeasondataOff)
-  ##Defensive team data
-  Defhex <- makeHexData(deff)
-  ##Offensive team data
-  Offhex <- makeHexData(Off)
-  #Merge offensive and deffensive data with total data by Cell id
-  DeffbyCell <- merge(Totalhex, Defhex, by = "cid", all = T)
-  OffByCell <- merge(Totalhex, Offhex, by = "cid", all = T)
-  ##  when calculating the difference empty cells should count as 0
-  DeffbyCell$PPS.x[is.na(DeffbyCell$PPS.x)] <- 0
-  DeffbyCell$PPS.y[is.na(DeffbyCell$PPS.y)] <- 0
-  DeffbyCell$ST.y[is.na(DeffbyCell$ST.y)] <- 0
-  
-  OffByCell$PPS.x[is.na(OffByCell$PPS.x)] <- 0
-  OffByCell$PPS.y[is.na(OffByCell$PPS.y)] <- 0
-  OffByCell$ST.y[is.na(OffByCell$ST.y)] <- 0
-  #  make a "difference" data.frame
-  DiffDeff <- data.frame(x = ifelse(is.na(DeffbyCell$x.x), DeffbyCell$x.y, DeffbyCell$x.x),
-                         y = ifelse(is.na(DeffbyCell$y.x), DeffbyCell$y.y, DeffbyCell$y.x),
-                         PPS= DeffbyCell$PPS.y - DeffbyCell$PPS.x,
-                         cid= DeffbyCell$cid, 
-                         ST = DeffbyCell$ST.y)
-  
-  DiffOff <- data.frame(x = ifelse(is.na(OffByCell$x.x), OffByCell$x.y, OffByCell$x.x),
-                        y = ifelse(is.na(OffByCell$y.x), OffByCell$y.y, OffByCell$y.x),
-                        PPS= OffByCell$PPS.y - OffByCell$PPS.x,
-                        ST = OffByCell$ST.x,
-                        cid = OffByCell$cid, 
-                        ST = OffByCell$ST.y)
-  #make team comparisons
-  Comparison <- merge(DiffOff, DiffDeff, by = "cid", all = T) 
-  Comparison <- Comparison[,-c(6:7)]
-  Comparison$Diff <- c(Comparison$PPS.x + Comparison$PPS.y)
+  Totalhex <- makeHexData(Seasondata)
+  Totalhex <- filter(Totalhex, ST > quantile(Totalhex$ST, probs = quant))
+  Totalhex$ST <- ifelse(Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2], 0.06,
+                        ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] , 0.12 ,
+                               ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] , 0.25 ,
+                                      ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[5] , 0.5 ,
+                                             1))))
   
   
-  PPSAA <- weighted.mean((Comparison$PPS.x + Comparison$PPS.y), Comparison$ST.x, na.rm = TRUE)
+  #Function to transform hexbins into polygons
+  hex_coord_df <- function(x, y, width, height, size = 1) {
+    # like hex_coord but returns a dataframe of vertices grouped by an id variable
+    dx <- size * width / 6
+    dy <- size * height / 2 / sqrt(3)
+    
+    hex_y <- rbind(y - 2 * dy, y - dy, y + dy, y + 2 * dy, y + dy, y - dy)
+    hex_x <- rbind(x, x + dx, x + dx, x, x - dx, x - dx)
+    id    <- rep(1:length(x), each=6)
+    
+    data.frame(cbind(x=as.vector(hex_x), y=as.vector(hex_y), id))
+  }
   
-  return(PPSAA)
+  #Transform Hexbins into polygons
+  
+  Total <- hex_coord_df(Totalhex$x, Totalhex$y, 35*Totalhex$ST, 12*Totalhex$ST, size =1)
+  Total$PPS <- rep(Totalhex$PPS, each = 6)
+  
+  #Make Graph
+  if(type == "PPS"){
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(name = "PPS", midpoint = 1, low = "blue", high = "red", limits=c(0, 3)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold")) + ylim(c(-40, 280)) + xlim(c(-250, 250))+ theme(legend.position="bottom")
+  }else{
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(name = "Pct", midpoint = 0.5, low = "blue", high = "red", limits=c(0, 1)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ ylim(c(-40, 280)) + xlim(c(-250, 250))+ theme(legend.position="bottom")}
+  GRAPH <- GRAPH +  ggtitle(paste("Defensive shot chart of", team, sep =" "))
+  
+  
+  return(GRAPH)
 }
-######
+
+OffShotSeasonGraphPlayer <- function(Seasondata, player, nbins = 25, quant = 0.4, type = "PPS", MAX_Y = 280) {
+  Seasondata <- dplyr::filter(Seasondata, LOC_Y < MAX_Y)
+  Seasondata <- dplyr::filter(Seasondata, PLAYER_NAME == player)
+  #Get the maximum and minumum values for x and y
+  xbnds <- range(Seasondata$LOC_X)
+  ybnds <- range(Seasondata$LOC_Y)
+  #Make hexbin dataframes out of the players
+  
+  if (type == "PPS"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG))*ifelse(tolower(df$SHOT_TYPE) == "3pt field goal", 3, 2), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
+  }
+  
+  if (type == "PCT"){
+    makeHexData <- function(df) {
+      h <- hexbin(df$LOC_X, df$LOC_Y, nbins, xbnds = xbnds, ybnds = ybnds, IDs = TRUE)
+      data.frame(hcell2xy(h),
+                 PPS = tapply(as.numeric(as.character(df$SHOT_MADE_FLAG)), h@cID, FUN = function(z) sum(z)/length(z)),
+                 ST = tapply(df$SHOT_MADE_FLAG, h@cID, FUN = function(z) length(z)),
+                 cid = h@cell)
+    }
+  }
+  
+  
+  ##Total NBA data
+  Totalhex <- makeHexData(Seasondata)
+  Totalhex <- filter(Totalhex, ST > quantile(Totalhex$ST, probs = quant))
+  Totalhex$ST <- ifelse(Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2], 0.06,
+                        ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[2] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] , 0.12 ,
+                               ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[3] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] , 0.25 ,
+                                      ifelse(Totalhex$ST > quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[4] & Totalhex$ST <= quantile(Totalhex$ST, probs = c(0, 0.25, 0.5, 0.75, 0.9, 1))[5] , 0.5 ,
+                                             1))))
+  
+  
+  #Function to transform hexbins into polygons
+  hex_coord_df <- function(x, y, width, height, size = 1) {
+    # like hex_coord but returns a dataframe of vertices grouped by an id variable
+    dx <- size * width / 6
+    dy <- size * height / 2 / sqrt(3)
+    
+    hex_y <- rbind(y - 2 * dy, y - dy, y + dy, y + 2 * dy, y + dy, y - dy)
+    hex_x <- rbind(x, x + dx, x + dx, x, x - dx, x - dx)
+    id    <- rep(1:length(x), each=6)
+    
+    data.frame(cbind(x=as.vector(hex_x), y=as.vector(hex_y), id))
+  }
+  
+  #Transform Hexbins into polygons
+  
+  Total <- hex_coord_df(Totalhex$x, Totalhex$y, 35*Totalhex$ST, 12*Totalhex$ST, size =1)
+  Total$PPS <- rep(Totalhex$PPS, each = 6)
+  
+  #Make Graph
+  if(type == "PPS"){
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(midpoint = 1, low = "blue", high = "red", limits=c(0, 3)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            legend.title = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold")) + ylim(c(-40, 280))+ xlim(c(-250, 250)) + theme(legend.position="bottom")
+  }else{
+    GRAPH <- ggplot(Total, aes(x=x, y = y))+ annotation_custom(court, -250, 250, -52, 418) + geom_polygon(aes(group = id, fill = PPS)) + scale_fill_gradient2(midpoint = 0.5, low = "blue", high = "red", limits=c(0, 1)) +
+      coord_fixed()  +theme(line = element_blank(),
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.text.y = element_blank(),
+                            legend.title = element_blank(),
+                            plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ ylim(c(-40, 280))+ xlim(c(-250, 250)) + theme(legend.position="bottom")
+  }
+  if(type == "PPS"){
+    GRAPH <- GRAPH +  ggtitle(paste("Points per Shot of", player, sep =" "))
+  }  else {GRAPH <- GRAPH +  ggtitle(paste("Shooting percentage", player, sep =" ")
+  )}
+  
+  
+  return(GRAPH)
+}
+
+PointShotSeasonGraphPlayer <- function(Seasondata, player, Type = "Both") {
+  Seasondata <- dplyr::filter(Seasondata, LOC_Y < 280 & LOC_Y > -40)
+  Seasondata <- dplyr::filter(Seasondata, LOC_X < 250 & LOC_X > -250)
+  Seasondata <- dplyr::filter(Seasondata, PLAYER_NAME == player)
+  Seasondata$SHOT_MADE_FLAG <- ifelse(Seasondata$SHOT_MADE_FLAG == "1", "Made", "Missed")
+  Seasondata$SHOT_MADE_FLAG <- as.factor(Seasondata$SHOT_MADE_FLAG)
+  if (Type == "Made"){
+    Seasondata2 <- dplyr::filter(Seasondata, SHOT_MADE_FLAG == "Made")
+  }
+  
+  if (Type == "Missed"){
+    Seasondata2 <- dplyr::filter(Seasondata, SHOT_MADE_FLAG == "Missed")
+  }
+  
+  if (Type == "Both"){
+    Seasondata2 <- Seasondata
+  }
+  
+  #Make Graph
+  GRAPH <- ggplot(Seasondata2, aes(x=LOC_X, y = LOC_Y))+ annotation_custom(court, -250, 250, -52, 418)  +
+    stat_density_2d(aes(fill = ..level..), geom = "polygon", show.legend = FALSE, alpha = 0.2) + geom_point(aes(color = SHOT_MADE_FLAG), alpha = 0.8) + scale_fill_gradientn(
+      colours = rev( brewer.pal( 7, "Spectral" ) )
+    ) +
+    coord_fixed()  +theme(line = element_blank(),
+                          axis.title.x = element_blank(),
+                          axis.title.y = element_blank(),
+                          axis.text.x = element_blank(),
+                          axis.text.y = element_blank(),
+                          legend.title = element_blank(),
+                          plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))+ ylim(c(-40, 280)) + xlim(c(-250, 250))+ theme(legend.position="bottom")
+  return(GRAPH)
+}
+
 shinyServer(function(input, output) {
-  
   output$distPlot <- renderPlot({
-    
-    Com1 <- ShotComparisonGraph(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant, focus = input$Focus)
-    Com2 <- ShotComparisonGraph(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant, focus = input$Focus)
-    
-    grid.arrange(Com1$charts,Com2$charts,Com1$leg,ncol=1,heights=c(3/7, 3/7 ,1/7))
-    
-    
+    OffShotSeasonGraphTeam(Seasondata = Season2018, team = input$OffTeam, type = input$OffType)
+  })
+  output$defPlot <- renderPlot({
+    DefShotSeasonGraphTeam(Seasondata = Season2018, team = input$DefTeam, type = input$DefType)
   })
   
-  output$offAPPS <- renderText({
-    Off <- round(PPS(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30), digits = 3)
-    paste("The Points over Average per shot scored by", input$Home, "against", input$Visitor, "is" , Off)
+  output$playPlotPoint <- renderPlot({
+    PointShotSeasonGraphPlayer(Seasondata = Season2018, player = input$player, Type = input$playType)
   })
   
-  output$Spread <- renderText({
-    off <- PPS(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
-    def <- PPS(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30)
-    spread <- round(predict(BRT, data.frame(defAPPS = off, offAPPS = def), type="raw"), digits = 3)
-    paste("The predicted home spread is", spread)
-  })
-  
-  
-  output$defAPPS <- renderText({
-    def <- round(PPS(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30), digits = 3)
-    paste("The Points over Average per shot scored by", input$Visitor, "against", input$Home, "is" , def)
-  })
-  
-  output$downloadPlot <- downloadHandler(
-    filename = function() { paste("ShotCharts", '.png', sep='') },
+  plotInput = function() {
+    PointShotSeasonGraphPlayer(Seasondata = Season2018, player = input$player, Type = input$playType)
+  }
+  output$downloadPlayer = downloadHandler(
+    filename = paste("Player", Sys.Date(), ".png", sep=""),
     content = function(file) {
-      png(file, width = 1500, height = 1500, res = 300)
-      Com1 <- ShotComparisonGraph(OffTeam = input$Home, DefTown = input$Visitor, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
-      Com2 <- ShotComparisonGraph(OffTeam = input$Visitor, DefTown = input$Home, SeasondataOff = shotDataTotal2016, SeasonDataDef = shotDatafDef2016, nbins = 30, quant = input$quant)
-      grid.arrange(Com1$charts,Com2$charts,Com1$leg,ncol=1,heights=c(3/7, 3/7 ,1/7))
-      dev.off()
+      device <- function(..., width, height) {
+        grDevices::png(..., width = width, height = height,
+                       res = 300, units = "in")
+      }
+      ggsave(file, plot = plotInput(), device = device)
     })
+  ##DownloadOff
+  plotOff = function() {
+    OffShotSeasonGraphTeam(Seasondata = Season2018, team = input$OffTeam, type = input$OffType)
+  }
+  output$downloadOff = downloadHandler(
+    filename = paste("Offensive", Sys.Date(), ".png", sep=""),
+    content = function(file) {
+      device <- function(..., width, height) {
+        grDevices::png(..., width = width, height = height,
+                       res = 300, units = "in")
+      }
+      ggsave(file, plot = plotOff(), device = device)
+    })
+  #DownloadDeff
   
+  plotDef = function() {
+    DefShotSeasonGraphTeam(Seasondata = Season2018, team = input$DefTeam, type = input$DefType)
+  }
+  output$downloadDef = downloadHandler(
+    filename = paste("Offensive", Sys.Date(), ".png", sep=""),
+    content = function(file) {
+      device <- function(..., width, height) {
+        grDevices::png(..., width = width, height = height,
+                       res = 300, units = "in")
+      }
+      ggsave(file, plot = plotDef(), device = device)
+    })
 })
