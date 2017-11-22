@@ -12,7 +12,7 @@ library(ggplot2)
 library(RColorBrewer)
 library(curl)
 githubURL <- ("https://raw.githubusercontent.com/derek-corcoran-barrios/derek-corcoran-barrios.github.io/master/Season2018.rds")
-#download.file(githubURL,"Season2018.rds", method="curl")
+download.file(githubURL,"Season2018.rds", method="curl")
 Season2018 <- readRDS("Season2018.rds")
 load("court.rda")
 OffShotSeasonGraphTeam<- function(Seasondata, team, nbins = 25, quant = 0.4, type = "PPS", MAX_Y = 280) {
@@ -305,6 +305,10 @@ shinyServer(function(input, output) {
   })
   output$defPlot <- renderPlot({
     DefShotSeasonGraphTeam(Seasondata = Season2018, team = input$DefTeam, type = input$DefType)
+  })
+  
+  output$Updated <- renderText({
+    as.character(max(Season2018$GAME_DATE))
   })
   
   output$playPlotPoint <- renderPlot({

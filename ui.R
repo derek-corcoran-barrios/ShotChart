@@ -35,7 +35,8 @@ shinyUI(fluidPage(
     mainPanel(plotOutput("distPlot"),
               downloadLink("downloadOff", "Download"),
               plotOutput("defPlot"),
-              downloadLink("downloadDef", "Download"))
+              downloadLink("downloadDef", "Download"),
+              p("Data updated on", textOutput("Updated")))
   )),
               tabPanel("Player shot charts", sidebarLayout(
                 sidebarPanel(
